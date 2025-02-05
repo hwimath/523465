@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>단항식 빈출 유형 (1)</title>
+  <style>
+    body {
+      background-color: #fff;
+      color: #000;
+      font-family: sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    #startScreen, #gameScreen, #endScreen {
+      display: none;
+      padding: 20px;
+    }
+    #startScreen.active, #gameScreen.active, #endScreen.active {
+      display: block;
+    }
+    .option-button {
+      display: block;
+      width: 100%;
+      margin: 8px 0;
+      padding: 10px;
+      background-color: #fff;
+      color: #000;
+      border: 1px solid #000;
+      cursor: pointer;
+      text-align: left;
+      font-size: 16px;
+    }
+    .option-button:hover {
+      background-color: #f0f0f0;
+    }
+    #energyBarContainer {
+      width: 100%;
+      background-color: #eee;
+      border: 1px solid #000;
+      height: 20px;
+      margin: 10px 0;
+      position: relative;
+    }
+    #energyBar {
+      background-color: #000;
+      height: 100%;
+      width: 100%;
+      transition: width 0.1s linear;
+    }
+    #info {
+      margin-bottom: 10px;
+    }
+    button {
+      padding: 10px 15px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    #response {
+      white-space: pre-wrap;
+      margin-top: 10px;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" defer></script>
+</head>
+<body>
+  <!-- Start Screen -->
+  <div id="startScreen" class="active">
+    <h1>단항식 빈출 유형 (1)</h1>
+    <p>이름을 입력하세요:</p>
+    <input type="text" id="playerName" placeholder="이름">
+    <p>난이도를 선택하세요:</p>
+    <select id="difficultySelect">
+      <option value="최상">최상 (20초/문제, 20점)</option>
+      <option value="상">상 (30초/문제, 15점)</option>
+      <option value="중">중 (40초/문제, 13점)</option>
+      <option value="하">하 (제한 없음, 10점)</option>
+    </select>
+    <br><br>
+    <button id="startButton">시작</button>
+  </div>
+
+  <!-- Game Screen -->
+  <div id="gameScreen">
+    <div id="info">
+      <span id="scoreDisplay">점수: 0</span> | 
+      <span id="chanceDisplay">남은 기회: 3</span> | 
+      <span id="overallTimer">총 경과 시간: 0초</span>
+    </div>
+    <div id="energyBarContainer">
+      <div id="energyBar"></div>
+    </div>
+    <div id="questionContainer"></div>
+  </div>
+
+  <!-- End Screen -->
+  <div id="endScreen">
+    <h2>게임 종료</h2>
+    <p id="finalScore"></p>
+    <button id="sendScoreButton">점수전송</button>
+    <div id="response"></div>
+  </div>
+
+  <script>
+    // Save Data function provided
+    async function saveData(game, name, score, elapsedTime) {
+      const FUNCTION_URL = "https://us-central1-record-f420d.cloudfunctions.net/report";
+
+      const requestData = {
+        game,
+        name,
+        score: parseInt(score, 10),
+        elapsedTime: parseInt(elapsedTime, 10)
+      };
+
+      try {
+        const response = await fetch(FUNCTION_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(requestData)
+        });
+
+        const responseData = await response.json();
+
+        if (response.ok) {
+          document.getElementById('response').innerText = 
+            "성공: " + JSON.stringify(responseData, null, 2);
+        } else {
+          document.getElementById('response').innerText = 
+            "오류: " + JSON.stringify(responseData, null, 2);
+        }
+      } catch (error) {
+        console.error('요청 실패:', error);
+        document.getElementById('response').innerText = 
+          "네트워크 오류: " + error.message;
+      }
+    }
+
+    // Utility: shuffle array
+    function shuffleArray(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+    }
+
+    // Question objects array
+    // 각 문제 객체: { question: string, options: [string,...], correct: index }
+    const questions = [
+      // [유형1: a, b를 사용하여 지수식 변환]
+      {
+        question: "a = \\(2^{x+2}\\), b = \\(3^{x+1}\\)일 때, \\(18^x\\)를 a, b를 사용하여 나타낸 식은?",
+        options: [
+          "\\(\\dfrac{a\\, b^2}{36}\\)",
+          "\\(\\dfrac{a\\, b}{36}\\)",
+          "\\(\\dfrac{a^2\\, b}{6}\\)",
+          "\\(\\dfrac{a\\, b}{6}\\)",
+          "18ab"
+        ],
+        correct: 0
+      },
+      {
+        question: "a = \\(2^{x+3}\\), b = \\(3^{x-1}\\)일 때, \\(12^x\\)를 a, b를 사용하여 나타낸 식은?",
+        options: [
+          "\\(\\dfrac{3a^2b}{64}\\)",
+          "\\(\\dfrac{a^2b}{64}\\)",
+          "\\(\\dfrac{3ab}{64}\\)",
+          "\\(\\dfrac{a^2b^2}{64}\\)",
+          "12ab"
+        ],
+        correct: 0
+      },
+      {
+        question: "a = \\(2^{x+1}\\), b = \\(3^{x+2}\\)일 때, \\(24^x\\)를 a, b를 사용하여 나타낸 식은?",
+        options: [
+          "\\(\\dfrac{a^3b}{72}\\)",
+          "\\(\\dfrac{ab^3}{72}\\)",
+          "\\(\\dfrac{a^2b}{72}\\)",
+          "\\(\\dfrac{a^3b^2}{72}\\)",
+          "24ab"
+        ],
+        correct: 0
+      },
+      {
+        question: "a = \\(2^{x+2}\\), b = \\(3^{x+2}\\)일 때, \\(36^x\\)를 a, b를 사용하여 나타낸 식은?",
+        options: [
+          "\\(\\dfrac{a^2b^2}{1296}\\)",
+          "\\(\\dfrac{ab}{1296}\\)",
+          "\\(\\dfrac{a^2b}{36}\\)",
+          "\\(\\dfrac{ab^2}{36}\\)",
+          "36ab"
+        ],
+        correct: 0
+      },
+      {
+        question: "a = \\(2^{x+1}\\), b = \\(3^{x}\\)일 때, \\(6^x\\)를 a, b를 사용하여 나타낸 식은?",
+        options: [
+          "\\(\\dfrac{ab}{2}\\)",
+          "\\(\\dfrac{a}{2b}\\)",
+          "\\(\\dfrac{a^2b}{2}\\)",
+          "\\(\\dfrac{ab^2}{2}\\)",
+          "6ab"
+        ],
+        correct: 0
+      },
+      {
+        question: "a = \\(2^{x+3}\\), b = \\(3^{x}\\)일 때, \\(24^x\\)를 a, b를 사용하여 나타낸 식은?",
+        options: [
+          "\\(\\dfrac{a^3b}{512}\\)",
+          "\\(\\dfrac{a^2b}{512}\\)",
+          "\\(\\dfrac{ab}{512}\\)",
+          "\\(\\dfrac{a^3b}{64}\\)",
+          "24ab"
+        ],
+        correct: 0
+      },
+      {
+        question: "a = \\(2^{x+2}\\), b = \\(3^{x}\\)일 때, \\(12^x\\)를 a, b를 사용하여 나타낸 식은?",
+        options: [
+          "\\(\\dfrac{a^2b}{16}\\)",
+          "\\(\\dfrac{ab}{16}\\)",
+          "\\(\\dfrac{a^2b^2}{16}\\)",
+          "\\(\\dfrac{ab^2}{16}\\)",
+          "12ab"
+        ],
+        correct: 0
+      },
+      {
+        question: "a = \\(2^{x+1}\\), b = \\(3^{x+2}\\)일 때, \\(18^x\\)를 a, b를 사용하여 나타낸 식은?",
+        options: [
+          "\\(\\dfrac{ab^2}{162}\\)",
+          "\\(\\dfrac{a^2b}{162}\\)",
+          "\\(\\dfrac{ab^2}{18}\\)",
+          "\\(\\dfrac{a^2b^2}{162}\\)",
+          "18ab"
+        ],
+        correct: 0
+      },
+      {
+        question: "a = \\(2^{x+2}\\), b = \\(3^{x+3}\\)일 때, \\(54^x\\)를 a, b를 사용하여 나타낸 식은?",
+        options: [
+          "\\(\\dfrac{ab^3}{78732}\\)",
+          "\\(\\dfrac{a^2b^3}{78732}\\)",
+          "\\(\\dfrac{ab^3}{19683}\\)",
+          "\\(\\dfrac{a^3b^2}{78732}\\)",
+          "54ab"
+        ],
+        correct: 0
+      },
+      {
+        question: "a = \\(2^{x}\\), b = \\(3^{x+1}\\)일 때, \\(6^x\\)를 a, b를 사용하여 나타낸 식은?",
+        options: [
+          "\\(\\dfrac{ab}{3}\\)",
+          "\\(\\dfrac{a}{3b}\\)",
+          "\\(\\dfrac{a^2b}{3}\\)",
+          "\\(\\dfrac{ab^2}{3}\\)",
+          "6ab"
+        ],
+        correct: 0
+      },
+
+      // [유형2: 자연수 자리수 구하기]
+      {
+        question: "\\(2^8 \\times 3^2 \\times 5^{10} \\times 6^2\\)가 n자리 자연수일 때, n의 값은?",
+        options: ["10", "11", "12", "13", "14"],
+        correct: 2
+      },
+      {
+        question: "\\(2^5 \\times 3^3 \\times 5^7 \\times 6^1\\)가 n자리 자연수일 때, n의 값은?",
+        options: ["8", "9", "10", "11", "12"],
+        correct: 1
+      },
+      {
+        question: "\\(2^{10} \\times 3^4 \\times 5^8 \\times 6^3\\)가 n자리 자연수일 때, n의 값은?",
+        options: ["12", "13", "14", "15", "16"],
+        correct: 1
+      },
+      {
+        question: "\\(2^4 \\times 3^5 \\times 5^6 \\times 6^2\\)가 n자리 자연수일 때, n의 값은?",
+        options: ["9", "10", "11", "12", "13"],
+        correct: 1
+      },
+      {
+        question: "\\(2^7 \\times 3^3 \\times 5^9 \\times 6^4\\)가 n자리 자연수일 때, n의 값은?",
+        options: ["12", "13", "14", "15", "16"],
+        correct: 1
+      },
+      {
+        question: "\\(2^9 \\times 3^2 \\times 5^5 \\times 6^3\\)가 n자리 자연수일 때, n의 값은?",
+        options: ["9", "10", "11", "12", "13"],
+        correct: 1
+      },
+      {
+        question: "\\(2^6 \\times 3^6 \\times 5^7 \\times 6^2\\)가 n자리 자연수일 때, n의 값은?",
+        options: ["10", "11", "12", "13", "14"],
+        correct: 2
+      },
+      {
+        question: "\\(2^{12} \\times 3^3 \\times 5^{10} \\times 6^1\\)가 n자리 자연수일 때, n의 값은?",
+        options: ["12", "13", "14", "15", "16"],
+        correct: 1
+      },
+      {
+        question: "\\(2^3 \\times 3^8 \\times 5^4 \\times 6^5\\)가 n자리 자연수일 때, n의 값은?",
+        options: ["11", "12", "13", "14", "15"],
+        correct: 1
+      },
+      {
+        question: "\\(2^{11} \\times 3^7 \\times 5^6 \\times 6^2\\)가 n자리 자연수일 때, n의 값은?",
+        options: ["12", "13", "14", "15", "16"],
+        correct: 1
+      },
+
+      // [유형3: 두 식의 오류 곱]
+      {
+        question: "＜보기＞의 두 식 \\(A\\), \\(B\\)에 대하여<br>\\(A \\times B\\)를 계산한 것으로 옳은 것은?<br><br>" +
+                  "＜보기＞<br>" +
+                  "\\(84x^7y^3 \\div (-3xy) = 6x^5y^{10}\\)<br>" +
+                  "\\((3x^2y^3)^2 \\div x^2y^3 \\times B = 3x^2y^9\\)",
+        options: [
+          "\\(14y^3\\)",
+          "\\(-\\dfrac{14}{x^3}\\)",
+          "\\(-14x^3\\)",
+          "\\(14x^3y^3\\)",
+          "\\(-14x^3y^3\\)"
+        ],
+        correct: 4
+      },
+      {
+        // Q22: 의도한 최종 곱 = 14x^3y^3 (정답 옵션 인덱스 3)
+        question: "＜보기＞의 두 식 \\(A\\), \\(B\\)에 대하여<br>\\(A \\times B\\)를 계산한 것으로 옳은 것은?<br><br>" +
+                  "＜보기＞<br>" +
+                  "\\(70x^4y^3 \\div (10xy) = 14x^3y^3\\)<br>" +
+                  "\\((3x^2y^3)^2 \\div (x^2y^3) \\times B = 9x^2y^3\\)",
+        options: [
+          "\\(14y^3\\)",
+          "\\(-\\dfrac{14}{x^3}\\)",
+          "\\(-14x^3\\)",
+          "\\(14x^3y^3\\)",
+          "\\(-14x^3y^3\\)"
+        ],
+        correct: 3
+      },
+      {
+        // Q23: 최종 곱 = -14x^3y^3, 정답 인덱스 4
+        question: "＜보기＞의 두 식 \\(A\\), \\(B\\)에 대하여<br>\\(A \\times B\\)를 계산한 것으로 옳은 것은?<br><br>" +
+                  "＜보기＞<br>" +
+                  "\\(-42x^4y^3 \\div (3x) = -14x^3y^3\\)<br>" +
+                  "\\((2x^2y^2)^2 \\div (x^2y^2) \\times B = 4x^2y^2\\)",
+        options: [
+          "\\(14y^3\\)",
+          "\\(-\\dfrac{14}{x^3}\\)",
+          "\\(-14x^3\\)",
+          "\\(14x^3y^3\\)",
+          "\\(-14x^3y^3\\)"
+        ],
+        correct: 4
+      },
+      {
+        // Q24: 최종 곱 = 14y^3, 정답 인덱스 0
+        question: "＜보기＞의 두 식 \\(A\\), \\(B\\)에 대하여<br>\\(A \\times B\\)를 계산한 것으로 옳은 것은?<br><br>" +
+                  "＜보기＞<br>" +
+                  "\\(42y^4 \\div 3 = 14y^3\\)<br>" +
+                  "\\((x^2)^2 \\div (x^2) \\times B = x^2\\)",
+        options: [
+          "\\(14y^3\\)",
+          "\\(-\\dfrac{14}{x^3}\\)",
+          "\\(-14x^3\\)",
+          "\\(14x^3y^3\\)",
+          "\\(-14x^3y^3\\)"
+        ],
+        correct: 0
+      },
+      {
+        // Q25: 최종 곱 = -14/x^3, 정답 인덱스 1
+        question: "＜보기＞의 두 식 \\(A\\), \\(B\\)에 대하여<br>\\(A \\times B\\)를 계산한 것으로 옳은 것은?<br><br>" +
+                  "＜보기＞<br>" +
+                  "\\(-42x^{-2} \\div (3x) = -14/x^3\\)<br>" +
+                  "\\((x^2)^2 \\div (x^2) \\times B = x^2\\)",
+        options: [
+          "\\(14y^3\\)",
+          "\\(-\\dfrac{14}{x^3}\\)",
+          "\\(-14x^3\\)",
+          "\\(14x^3y^3\\)",
+          "\\(-14x^3y^3\\)"
+        ],
+        correct: 1
+      },
+      {
+        // Q26: 최종 곱 = -14x^3, 정답 인덱스 2
+        question: "＜보기＞의 두 식 \\(A\\), \\(B\\)에 대하여<br>\\(A \\times B\\)를 계산한 것으로 옳은 것은?<br><br>" +
+                  "＜보기＞<br>" +
+                  "\\(-42x^4 \\div (3x) = -14x^3\\)<br>" +
+                  "\\((x^2)^2 \\div (x^2) \\times B = x^2\\)",
+        options: [
+          "\\(14y^3\\)",
+          "\\(-\\dfrac{14}{x^3}\\)",
+          "\\(-14x^3\\)",
+          "\\(14x^3y^3\\)",
+          "\\(-14x^3y^3\\)"
+        ],
+        correct: 2
+      },
+      {
+        // Q27: 최종 곱 = 14x^3y^3, 정답 인덱스 3
+        question: "＜보기＞의 두 식 \\(A\\), \\(B\\)에 대하여<br>\\(A \\times B\\)를 계산한 것으로 옳은 것은?<br><br>" +
+                  "＜보기＞<br>" +
+                  "\\(70x^4y^3 \\div (10xy) = 14x^3y^3\\)<br>" +
+                  "\\((x^2)^2 \\div (x^2) \\times B = x^2\\)",
+        options: [
+          "\\(14y^3\\)",
+          "\\(-\\dfrac{14}{x^3}\\)",
+          "\\(-14x^3\\)",
+          "\\(14x^3y^3\\)",
+          "\\(-14x^3y^3\\)"
+        ],
+        correct: 3
+      },
+      {
+        // Q28: 최종 곱 = -14x^3y^3, 정답 인덱스 4
+        question: "＜보기＞의 두 식 \\(A\\), \\(B\\)에 대하여<br>\\(A \\times B\\)를 계산한 것으로 옳은 것은?<br><br>" +
+                  "＜보기＞<br>" +
+                  "\\(-42x^4y^3 \\div (3x) = -14x^3y^3\\)<br>" +
+                  "\\((x^2)^2 \\div (x^2) \\times B = x^2\\)",
+        options: [
+          "\\(14y^3\\)",
+          "\\(-\\dfrac{14}{x^3}\\)",
+          "\\(-14x^3\\)",
+          "\\(14x^3y^3\\)",
+          "\\(-14x^3y^3\\)"
+        ],
+        correct: 4
+      },
+      {
+        // Q29: 최종 곱 = 14x^3y^3, 정답 인덱스 3
+        question: "＜보기＞의 두 식 \\(A\\), \\(B\\)에 대하여<br>\\(A \\times B\\)를 계산한 것으로 옳은 것은?<br><br>" +
+                  "＜보기＞<br>" +
+                  "\\(70x^4y^3 \\div (10xy) = 14x^3y^3\\)<br>" +
+                  "\\((2x^2y^2)^2 \\div (x^2y^2) \\times B = 4x^2y^2\\)",
+        options: [
+          "\\(14y^3\\)",
+          "\\(-\\dfrac{14}{x^3}\\)",
+          "\\(-14x^3\\)",
+          "\\(14x^3y^3\\)",
+          "\\(-14x^3y^3\\)"
+        ],
+        correct: 3
+      },
+      {
+        // Q30: 최종 곱 = -14x^3y^3, 정답 인덱스 4
+        question: "＜보기＞의 두 식 \\(A\\), \\(B\\)에 대하여<br>\\(A \\times B\\)를 계산한 것으로 옳은 것은?<br><br>" +
+                  "＜보기＞<br>" +
+                  "\\(-42x^4y^3 \\div (3x) = -14x^3y^3\\)<br>" +
+                  "\\((2x^2y^2)^2 \\div (x^2y^2) \\times B = 4x^2y^2\\)",
+        options: [
+          "\\(14y^3\\)",
+          "\\(-\\dfrac{14}{x^3}\\)",
+          "\\(-14x^3\\)",
+          "\\(14x^3y^3\\)",
+          "\\(-14x^3y^3\\)"
+        ],
+        correct: 4
+      },
+
+      // [유형4: 곱해야 할 것을 나누어 계산한 오류 수정]
+      {
+        question: "어떤 식에 \\(\\dfrac{2}{3}xy\\)를 곱해야 할 것을 잘못하여 나누었더니 그 결과가 \\(\\dfrac{15}{2}x^3y^2\\)가 되었다. 옳게 계산한 식은?",
+        options: [
+          "\\(\\dfrac{5}{3}x^5y^4\\)",
+          "\\(\\dfrac{10}{3}x^5y^4\\)",
+          "\\(\\dfrac{5}{3}x^3y^4\\)",
+          "\\(\\dfrac{10}{3}x^3y^4\\)",
+          "\\(\\dfrac{10}{3}x^2\\)"
+        ],
+        correct: 1
+      },
+      {
+        // Q32
+        question: "어떤 식에 \\(\\dfrac{1}{2}xy\\)를 곱해야 할 것을 잘못하여 나누었더니 그 결과가 \\(4x^2y\\)가 되었다. 옳게 계산한 식은?",
+        options: [
+          "\\(\\dfrac{1}{2}x^4y^3\\)",
+          "\\(x^4y^3\\)",
+          "\\(2x^4y^3\\)",
+          "\\(x^3y^2\\)",
+          "\\(2x^3y^2\\)"
+        ],
+        correct: 1
+      },
+      {
+        // Q33
+        question: "어떤 식에 \\(\\dfrac{4}{5}xy\\)를 곱해야 할 것을 잘못하여 나누었더니 그 결과가 \\(\\dfrac{5}{2}x^3y^2\\)가 되었다. 옳게 계산한 식은?",
+        options: [
+          "\\(\\dfrac{4}{5}x^5y^4\\)",
+          "\\(\\dfrac{8}{5}x^5y^4\\)",
+          "\\(\\dfrac{8}{5}x^4y^3\\)",
+          "\\(\\dfrac{4}{5}x^4y^3\\)",
+          "\\(\\dfrac{5}{4}x^5y^4\\)"
+        ],
+        correct: 1
+      },
+      {
+        // Q34
+        question: "어떤 식에 \\(\\dfrac{2}{3}xy\\)를 곱해야 할 것을 잘못하여 나누었더니 그 결과가 \\(\\dfrac{9}{4}x^2y^3\\)가 되었다. 옳게 계산한 식은?",
+        options: [
+          "\\(\\dfrac{3}{2}x^4y^5\\)",
+          "\\(\\dfrac{2}{3}x^4y^5\\)",
+          "\\(x^4y^5\\)",
+          "\\(\\dfrac{3}{2}x^3y^4\\)",
+          "\\(\\dfrac{2}{3}x^3y^4\\)"
+        ],
+        correct: 2
+      },
+      {
+        // Q35
+        question: "어떤 식에 \\(\\dfrac{5}{6}xy\\)를 곱해야 할 것을 잘못하여 나누었더니 그 결과가 \\(\\dfrac{12}{5}x^3y\\)가 되었다. 옳게 계산한 식은?",
+        options: [
+          "\\(\\dfrac{5}{3}x^5y^3\\)",
+          "\\(\\dfrac{5}{3}x^5y^3\\)",
+          "\\(\\dfrac{10}{3}x^5y^3\\)",
+          "\\(\\dfrac{10}{3}x^4y^2\\)",
+          "\\(\\dfrac{15}{3}x^5y^3\\)"
+        ],
+        correct: 0
+      },
+      {
+        // Q36
+        question: "어떤 식에 \\(\\dfrac{3}{5}xy\\)를 곱해야 할 것을 잘못하여 나누었더니 그 결과가 \\(6x^2y^2\\)가 되었다. 옳게 계산한 식은?",
+        options: [
+          "\\(\\dfrac{54}{25}x^4y^4\\)",
+          "\\(\\dfrac{27}{25}x^4y^4\\)",
+          "\\(\\dfrac{54}{25}x^3y^3\\)",
+          "\\(\\dfrac{27}{25}x^3y^3\\)",
+          "\\(\\dfrac{54}{25}x^5y^5\\)"
+        ],
+        correct: 0
+      },
+      {
+        // Q37
+        question: "어떤 식에 \\(\\dfrac{7}{8}xy\\)를 곱해야 할 것을 잘못하여 나누었더니 그 결과가 \\(\\dfrac{16}{7}x^4y^2\\)가 되었다. 옳게 계산한 식은?",
+        options: [
+          "\\(\\dfrac{7}{4}x^6y^4\\)",
+          "\\(\\dfrac{7}{4}x^5y^3\\)",
+          "\\(\\dfrac{14}{8}x^6y^4\\)",
+          "\\(\\dfrac{14}{7}x^6y^4\\)",
+          "\\(\\dfrac{7}{4}x^7y^5\\)"
+        ],
+        correct: 0
+      },
+      {
+        // Q38
+        question: "어떤 식에 \\(\\dfrac{2}{5}xy\\)를 곱해야 할 것을 잘못하여 나누었더니 그 결과가 \\(5x^3y^2\\)가 되었다. 옳게 계산한 식은?",
+        options: [
+          "\\(\\dfrac{4}{5}x^5y^4\\)",
+          "\\(\\dfrac{4}{5}x^4y^3\\)",
+          "\\(\\dfrac{8}{5}x^5y^4\\)",
+          "\\(\\dfrac{8}{5}x^4y^3\\)",
+          "\\(\\dfrac{2}{5}x^5y^4\\)"
+        ],
+        correct: 0
+      },
+      {
+        // Q39
+        question: "어떤 식에 \\(\\dfrac{3}{7}xy\\)를 곱해야 할 것을 잘못하여 나누었더니 그 결과가 \\(\\dfrac{21}{4}x^2y^3\\)가 되었다. 옳게 계산한 식은?",
+        options: [
+          "\\(\\dfrac{27}{28}x^4y^5\\)",
+          "\\(\\dfrac{27}{28}x^3y^4\\)",
+          "\\(\\dfrac{21}{28}x^4y^5\\)",
+          "\\(\\dfrac{21}{28}x^3y^4\\)",
+          "\\(\\dfrac{27}{28}x^5y^6\\)"
+        ],
+        correct: 0
+      },
+      {
+        // Q40
+        question: "어떤 식에 \\(\\dfrac{5}{7}xy\\)를 곱해야 할 것을 잘못하여 나누었더니 그 결과가 \\(\\dfrac{35}{8}x^3y^2\\)가 되었다. 옳게 계산한 식은?",
+        options: [
+          "\\(\\dfrac{125}{56}x^5y^4\\)",
+          "\\(\\dfrac{125}{56}x^4y^3\\)",
+          "\\(\\dfrac{25}{8}x^5y^4\\)",
+          "\\(\\dfrac{25}{8}x^4y^3\\)",
+          "\\(\\dfrac{35}{8}x^5y^4\\)"
+        ],
+        correct: 0
+      }
+    ];
+
+    // Game state variables
+    let currentQuestionIndex = 0;
+    let fixedQuestionsCount = 40; // 10문제씩 4유형 = 40문제
+    let score = 0;
+    let chances = 3;
+    let overallTime = 0; // in seconds
+    let questionTimer = null;
+    let overallTimerInterval = null;
+    let currentQuestionTimeLimit = 0; // seconds (depends on difficulty)
+    let difficulty = "최상"; // default
+    let scorePerQuestion = 20; // default for 최상
+
+    // Difficulty settings
+    const difficultySettings = {
+      "최상": { timeLimit: 20, score: 20 },
+      "상": { timeLimit: 30, score: 15 },
+      "중": { timeLimit: 40, score: 13 },
+      "하": { timeLimit: 0, score: 10 } // 0 means no timer
+    };
+
+    // DOM elements
+    const startScreen = document.getElementById("startScreen");
+    const gameScreen = document.getElementById("gameScreen");
+    const endScreen = document.getElementById("endScreen");
+    const startButton = document.getElementById("startButton");
+    const playerNameInput = document.getElementById("playerName");
+    const difficultySelect = document.getElementById("difficultySelect");
+    const scoreDisplay = document.getElementById("scoreDisplay");
+    const chanceDisplay = document.getElementById("chanceDisplay");
+    const overallTimerDisplay = document.getElementById("overallTimer");
+    const energyBar = document.getElementById("energyBar");
+    const questionContainer = document.getElementById("questionContainer");
+    const finalScoreDisplay = document.getElementById("finalScore");
+    const sendScoreButton = document.getElementById("sendScoreButton");
+
+    // Start game handler
+    startButton.addEventListener("click", () => {
+      const name = playerNameInput.value.trim();
+      if (name === "") {
+        alert("이름을 입력하세요.");
+        return;
+      }
+      difficulty = difficultySelect.value;
+      currentQuestionTimeLimit = difficultySettings[difficulty].timeLimit;
+      scorePerQuestion = difficultySettings[difficulty].score;
+      startScreen.classList.remove("active");
+      gameScreen.classList.add("active");
+
+      // Shuffle fixed questions
+      shuffleArray(questions);
+      currentQuestionIndex = 0;
+      score = 0;
+      chances = 3;
+      overallTime = 0;
+      updateInfo();
+
+      // Start overall timer
+      overallTimerInterval = setInterval(() => {
+        overallTime++;
+        overallTimerDisplay.innerText = "총 경과 시간: " + overallTime + "초";
+      }, 1000);
+
+      showNextQuestion();
+    });
+
+    // Update score and chance displays
+    function updateInfo() {
+      scoreDisplay.innerText = "점수: " + score;
+      chanceDisplay.innerText = "남은 기회: " + chances;
+    }
+
+    // Show next question (fixed then infinite mode)
+    function showNextQuestion() {
+      if (chances <= 0) {
+        endGame();
+        return;
+      }
+      // If finished fixed questions, enter infinite (랜덤 선택)
+      if (currentQuestionIndex >= fixedQuestionsCount) {
+        currentQuestionIndex = Math.floor(Math.random() * fixedQuestionsCount);
+      }
+      const q = questions[currentQuestionIndex];
+      displayQuestion(q);
+    }
+
+    // Display question and options
+    function displayQuestion(qObj) {
+      // Clear previous timer if any
+      if (questionTimer) {
+        clearInterval(questionTimer);
+        questionTimer = null;
+      }
+      // Reset energy bar
+      if (currentQuestionTimeLimit > 0) {
+        energyBar.style.width = "100%";
+      } else {
+        energyBar.style.width = "100%";
+      }
+      // Build question HTML
+      let html = "<div>" + qObj.question + "</div><br>";
+      // Shuffle options for each question
+      const indices = [0, 1, 2, 3, 4];
+      shuffleArray(indices);
+      indices.forEach(i => {
+        html += "<button class='option-button' data-index='" + i + "'>" + qObj.options[i] + "</button>";
+      });
+      questionContainer.innerHTML = html;
+      MathJax.typeset(); // Render LaTeX
+
+      // Add event listeners for option buttons
+      const optionButtons = document.querySelectorAll(".option-button");
+      optionButtons.forEach(button => {
+        button.addEventListener("click", () => {
+          handleAnswer(parseInt(button.getAttribute("data-index")));
+        });
+      });
+
+      // Start per-question timer if needed
+      if (currentQuestionTimeLimit > 0) {
+        let timeLeft = currentQuestionTimeLimit;
+        questionTimer = setInterval(() => {
+          timeLeft -= 0.1;
+          let percent = (timeLeft / currentQuestionTimeLimit) * 100;
+          energyBar.style.width = percent + "%";
+          if (timeLeft <= 0) {
+            clearInterval(questionTimer);
+            questionTimer = null;
+            // 시간 초과 시 기회 감소 후 새 문제 출제
+            alert("시간 초과!");
+            chances--;
+            updateInfo();
+            showNextQuestion();
+          }
+        }, 100);
+      }
+    }
+
+    // Handle answer selection
+    function handleAnswer(selectedIndex) {
+      // Stop timer for this question
+      if (questionTimer) {
+        clearInterval(questionTimer);
+        questionTimer = null;
+      }
+      const qObj = questions[currentQuestionIndex];
+      // Check answer
+      if (selectedIndex === qObj.correct) {
+        score += scorePerQuestion;
+      } else {
+        // 답이 틀리면 정답을 표시하고 기회를 하나 감소
+        alert("오답입니다. 정답: " + qObj.options[qObj.correct]);
+        chances--;
+        if (chances <= 0) {
+          endGame();
+          return;
+        }
+      }
+      updateInfo();
+      currentQuestionIndex++;
+      showNextQuestion();
+    }
+
+    // End game handler
+    function endGame() {
+      clearInterval(overallTimerInterval);
+      gameScreen.classList.remove("active");
+      endScreen.classList.add("active");
+      finalScoreDisplay.innerText = "최종 점수: " + score + " (총 경과 시간: " + overallTime + "초)";
+    }
+
+    // 점수전송 버튼 클릭 이벤트
+    sendScoreButton.addEventListener("click", () => {
+      const name = playerNameInput.value.trim();
+      saveData("단항식 빈출 유형 (1)", name, score, overallTime);
+    });
+  </script>
+</body>
+</html>
