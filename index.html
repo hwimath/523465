@@ -102,39 +102,30 @@
   </div>
 
   <script>
-    // 점수 저장 함수 (주어진 것 그대로)
+    // 점수 저장 함수 (변경 없음)
     async function saveData(game, name, score, elapsedTime) {
       const FUNCTION_URL = "https://us-central1-record-f420d.cloudfunctions.net/report";
-
       const requestData = {
         game,
         name,
         score: parseInt(score, 10),
         elapsedTime: parseInt(elapsedTime, 10)
       };
-
       try {
         const response = await fetch(FUNCTION_URL, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestData)
         });
-
         const responseData = await response.json();
-
         if (response.ok) {
-          document.getElementById('response').innerText = 
-            "성공: " + JSON.stringify(responseData, null, 2);
+          document.getElementById('response').innerText = "성공: " + JSON.stringify(responseData, null, 2);
         } else {
-          document.getElementById('response').innerText = 
-            "오류: " + JSON.stringify(responseData, null, 2);
+          document.getElementById('response').innerText = "오류: " + JSON.stringify(responseData, null, 2);
         }
       } catch (error) {
         console.error('요청 실패:', error);
-        document.getElementById('response').innerText = 
-          "네트워크 오류: " + error.message;
+        document.getElementById('response').innerText = "네트워크 오류: " + error.message;
       }
     }
 
@@ -146,10 +137,9 @@
       }
     }
 
-    // [유형1: a,b를 사용하여 지수식 변환] + [유형2: 자연수 자리수 구하기] + [유형4: 곱-나눗셈 오류 수정]
-    // —— 유형3(두 식 A, B 곱 문제)는 완전히 제거했습니다!
+    // [유형1: a, b를 사용하여 지수식 변환] - 10문항  
+    // (기존 문제 중, 계산은 올바르나 중학생에게 너무 복잡한 문제는 제거하고 새로운 문제 추가)
     const questions = [
-      // [유형1] (10문항)
       {
         question: "a = \\(2^{x+2}\\), b = \\(3^{x+1}\\)일 때, \\(18^x\\)를 a, b를 사용하여 나타낸 식은?",
         options: [
@@ -238,14 +228,16 @@
         ],
         correct: 0
       },
+      // 원래 계산이 지나치게 복잡한 문제 (예: 54^x를 구하는 문제)는 삭제하고,
+      // 대신 a와 b 모두 사용하면서도 계산이 간단한 문제를 추가
       {
-        question: "a = \\(2^{x+2}\\), b = \\(3^{x+3}\\)일 때, \\(54^x\\)를 a, b를 사용하여 나타낸 식은?",
+        question: "a = \\(2^{x+1}\\), b = \\(3^{x}\\)일 때, \\(12^x\\)를 a, b를 사용하여 나타낸 식은?",
         options: [
-          "\\(\\dfrac{ab^3}{78732}\\)",
-          "\\(\\dfrac{a^2b^3}{78732}\\)",
-          "\\(\\dfrac{ab^3}{19683}\\)",
-          "\\(\\dfrac{a^3b^2}{78732}\\)",
-          "54ab"
+          "\\(\\dfrac{a^2b}{4}\\)",
+          "\\(\\dfrac{ab}{4}\\)",
+          "\\(\\dfrac{a^2b}{2}\\)",
+          "\\(\\dfrac{ab}{2}\\)",
+          "12ab"
         ],
         correct: 0
       },
@@ -261,7 +253,7 @@
         correct: 0
       },
 
-      // [유형2] (10문항)
+      // [유형2: 자연수 자리수 구하기] - 10문항  
       {
         question: "\\(2^8 \\times 3^2 \\times 5^{10} \\times 6^2\\)가 n자리 자연수일 때, n의 값은?",
         options: ["10", "11", "12", "13", "14"],
@@ -303,17 +295,19 @@
         correct: 1
       },
       {
-        question: "\\(2^3 \\times 3^8 \\times 5^4 \\times 6^5\\)가 n자리 자연수일 때, n의 값은?",
-        options: ["11", "12", "13", "14", "15"],
+        // 계산이 너무 복잡했던 문제를 간단하게 변경
+        question: "\\(2^3 \\times 3^4 \\times 5^2 \\times 6^2\\)가 n자리 자연수일 때, n의 값은?",
+        options: ["5", "6", "7", "8", "9"],
         correct: 1
       },
       {
-        question: "\\(2^{11} \\times 3^7 \\times 5^6 \\times 6^2\\)가 n자리 자연수일 때, n의 값은?",
-        options: ["12", "13", "14", "15", "16"],
+        // 마지막 문제도 간단한 형태로 수정
+        question: "\\(2^{10} \\times 3^5 \\times 5^4 \\times 6^1\\)가 n자리 자연수일 때, n의 값은?",
+        options: ["8", "9", "10", "11", "12"],
         correct: 1
       },
 
-      // [유형4] (10문항)
+      // [유형4: 곱-나눗셈 오류 수정] - 10문항  
       {
         question: "어떤 식에 \\(\\dfrac{2}{3}xy\\)를 곱해야 할 것을 잘못하여 나누었더니 그 결과가 \\(\\dfrac{15}{2}x^3y^2\\)가 되었다. 옳게 계산한 식은?",
         options: [
@@ -359,7 +353,7 @@
         correct: 2
       },
       {
-        // 중복 옵션 수정
+        // 중복 옵션은 이미 수정됨
         question: "어떤 식에 \\(\\dfrac{5}{6}xy\\)를 곱해야 할 것을 잘못하여 나누었더니 그 결과가 \\(\\dfrac{12}{5}x^3y\\)가 되었다. 옳게 계산한 식은?",
         options: [
           "\\(\\dfrac{5}{3}x^5y^3\\)",
@@ -427,11 +421,9 @@
       }
     ];
 
-    // 게임 진행 변수
+    // 게임 진행 변수 및 타이머 등 (변경 없음)
     let currentQuestionIndex = 0;
-    // 위의 3유형(1,2,4) 합계로 총 30문항 (10+10+10)
     const fixedQuestionsCount = questions.length;
-
     let score = 0;
     let chances = 3;
     let overallTime = 0; 
@@ -441,7 +433,6 @@
     let difficulty = "최상"; 
     let scorePerQuestion = 20; 
 
-    // 난이도별 세팅
     const difficultySettings = {
       "최상": { timeLimit: 20, score: 20 },
       "상": { timeLimit: 30, score: 15 },
@@ -449,7 +440,6 @@
       "하": { timeLimit: 0, score: 10 }
     };
 
-    // 주요 DOM
     const startScreen = document.getElementById("startScreen");
     const gameScreen = document.getElementById("gameScreen");
     const endScreen = document.getElementById("endScreen");
@@ -464,7 +454,6 @@
     const finalScoreDisplay = document.getElementById("finalScore");
     const sendScoreButton = document.getElementById("sendScoreButton");
 
-    // 게임 시작
     startButton.addEventListener("click", () => {
       const name = playerNameInput.value.trim();
       if (name === "") {
@@ -474,58 +463,43 @@
       difficulty = difficultySelect.value;
       currentQuestionTimeLimit = difficultySettings[difficulty].timeLimit;
       scorePerQuestion = difficultySettings[difficulty].score;
-
       startScreen.classList.remove("active");
       gameScreen.classList.add("active");
-
-      // 문제 섞기
       shuffleArray(questions);
       currentQuestionIndex = 0;
       score = 0;
       chances = 3;
       overallTime = 0;
       updateInfo();
-
-      // 전체 타이머 시작
       overallTimerInterval = setInterval(() => {
         overallTime++;
         overallTimerDisplay.innerText = "총 경과 시간: " + overallTime + "초";
       }, 1000);
-
       showNextQuestion();
     });
 
-    // 점수/기회 갱신
     function updateInfo() {
       scoreDisplay.innerText = "점수: " + score;
       chanceDisplay.innerText = "남은 기회: " + chances;
     }
 
-    // 다음 문제
     function showNextQuestion() {
       if (chances <= 0) {
         endGame();
         return;
       }
       if (currentQuestionIndex >= fixedQuestionsCount) {
-        // 30문제 모두 푼 뒤에는 랜덤 무한출제 or 종료 중 택
-        // 여기서는 무한출제로 예시
         currentQuestionIndex = Math.floor(Math.random() * fixedQuestionsCount);
       }
       displayQuestion(questions[currentQuestionIndex]);
     }
 
-    // 문제 표시
     function displayQuestion(qObj) {
-      // 타이머 클리어
       if (questionTimer) {
         clearInterval(questionTimer);
         questionTimer = null;
       }
-      // 에너지바 초기화
       energyBar.style.width = "100%";
-
-      // 문제+보기 구성
       let html = "<div>" + qObj.question + "</div><br>";
       const indices = [0,1,2,3,4];
       shuffleArray(indices);
@@ -534,19 +508,13 @@
           + qObj.options[i] + "</button>";
       });
       questionContainer.innerHTML = html;
-
-      // MathJax 렌더링
       MathJax.typeset();
-
-      // 클릭 이벤트
       const optionButtons = document.querySelectorAll(".option-button");
       optionButtons.forEach(btn=>{
         btn.addEventListener("click",()=>{
           handleAnswer(parseInt(btn.getAttribute("data-index")));
         });
       });
-
-      // 난이도별 타이머
       if (currentQuestionTimeLimit > 0) {
         let timeLeft = currentQuestionTimeLimit;
         questionTimer = setInterval(()=>{
@@ -565,9 +533,7 @@
       }
     }
 
-    // 정답 처리
     function handleAnswer(selectedIndex) {
-      // 문제별 타이머 중지
       if (questionTimer) {
         clearInterval(questionTimer);
         questionTimer = null;
@@ -588,7 +554,6 @@
       showNextQuestion();
     }
 
-    // 게임 종료 처리
     function endGame() {
       clearInterval(overallTimerInterval);
       gameScreen.classList.remove("active");
@@ -597,7 +562,6 @@
         "최종 점수: " + score + " (총 경과 시간: " + overallTime + "초)";
     }
 
-    // 점수 전송
     sendScoreButton.addEventListener("click", () => {
       const name = playerNameInput.value.trim();
       saveData("단항식 빈출 유형 (1)", name, score, overallTime);
