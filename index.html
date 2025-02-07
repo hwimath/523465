@@ -137,8 +137,7 @@
       }
     }
 
-    // [유형1: a, b를 사용하여 지수식 변환] - 10문항  
-    // (기존 문제 중, 계산은 올바르나 중학생에게 너무 복잡한 문제는 제거하고 새로운 문제 추가)
+    // 문제 배열 (문항 내용은 기존과 동일)
     const questions = [
       {
         question: "a = \\(2^{x+2}\\), b = \\(3^{x+1}\\)일 때, \\(18^x\\)를 a, b를 사용하여 나타낸 식은?",
@@ -228,8 +227,6 @@
         ],
         correct: 0
       },
-      // 원래 계산이 지나치게 복잡한 문제 (예: 54^x를 구하는 문제)는 삭제하고,
-      // 대신 a와 b 모두 사용하면서도 계산이 간단한 문제를 추가
       {
         question: "a = \\(2^{x+1}\\), b = \\(3^{x}\\)일 때, \\(12^x\\)를 a, b를 사용하여 나타낸 식은?",
         options: [
@@ -353,7 +350,6 @@
         correct: 2
       },
       {
-        // 중복 옵션은 이미 수정됨
         question: "어떤 식에 \\(\\dfrac{5}{6}xy\\)를 곱해야 할 것을 잘못하여 나누었더니 그 결과가 \\(\\dfrac{12}{5}x^3y\\)가 되었다. 옳게 계산한 식은?",
         options: [
           "\\(\\dfrac{5}{3}x^5y^3\\)",
@@ -421,7 +417,7 @@
       }
     ];
 
-    // 게임 진행 변수 및 타이머 등 (변경 없음)
+    // 게임 진행 변수 및 타이머
     let currentQuestionIndex = 0;
     const fixedQuestionsCount = questions.length;
     let score = 0;
@@ -432,6 +428,7 @@
     let currentQuestionTimeLimit = 0;
     let difficulty = "최상"; 
     let scorePerQuestion = 20; 
+    let questionAnswered = false; // 해당 문제에 대해 답이 처리되었는지 여부
 
     const difficultySettings = {
       "최상": { timeLimit: 20, score: 20 },
@@ -483,7 +480,10 @@
       chanceDisplay.innerText = "남은 기회: " + chances;
     }
 
+    // "다음문제" 버튼을 누르면 다음 문제로 넘어갑니다.
     function showNextQuestion() {
+      // 이전 문제 내용 초기화
+      questionContainer.innerHTML = "";
       if (chances <= 0) {
         endGame();
         return;
@@ -495,49 +495,65 @@
     }
 
     function displayQuestion(qObj) {
+      questionAnswered = false;
       if (questionTimer) {
         clearInterval(questionTimer);
         questionTimer = null;
       }
       energyBar.style.width = "100%";
       let html = "<div>" + qObj.question + "</div><br>";
-      const indices = [0,1,2,3,4];
+      const indices = [0, 1, 2, 3, 4];
       shuffleArray(indices);
-      indices.forEach(i=>{
-        html += "<button class='option-button' data-index='"+i+"'>"
-          + qObj.options[i] + "</button>";
+      indices.forEach(i => {
+        html += "<button class='option-button' data-index='" + i + "'>" 
+              + qObj.options[i] + "</button>";
       });
       questionContainer.innerHTML = html;
       MathJax.typeset();
       const optionButtons = document.querySelectorAll(".option-button");
-      optionButtons.forEach(btn=>{
-        btn.addEventListener("click",()=>{
+      optionButtons.forEach(btn => {
+        btn.addEventListener("click", () => {
           handleAnswer(parseInt(btn.getAttribute("data-index")));
         });
       });
       if (currentQuestionTimeLimit > 0) {
         let timeLeft = currentQuestionTimeLimit;
-        questionTimer = setInterval(()=>{
+        questionTimer = setInterval(() => {
           timeLeft -= 0.1;
-          let percent = (timeLeft/currentQuestionTimeLimit)*100;
+          let percent = (timeLeft / currentQuestionTimeLimit) * 100;
           energyBar.style.width = percent + "%";
           if (timeLeft <= 0) {
             clearInterval(questionTimer);
             questionTimer = null;
-            alert("시간 초과!");
-            chances--;
-            updateInfo();
-            showNextQuestion();
+            if (!questionAnswered) {
+              questionAnswered = true;
+              alert("시간 초과!");
+              chances--;
+              updateInfo();
+              // 옵션 버튼 비활성화
+              const optionButtons = document.querySelectorAll(".option-button");
+              optionButtons.forEach(btn => btn.disabled = true);
+              if (chances <= 0) {
+                endGame();
+                return;
+              }
+              showNextButton();
+            }
           }
-        },100);
+        }, 100);
       }
     }
 
     function handleAnswer(selectedIndex) {
+      if (questionAnswered) return;
+      questionAnswered = true;
       if (questionTimer) {
         clearInterval(questionTimer);
         questionTimer = null;
       }
+      // 옵션 버튼 비활성화
+      const optionButtons = document.querySelectorAll(".option-button");
+      optionButtons.forEach(btn => btn.disabled = true);
       const qObj = questions[currentQuestionIndex];
       if (selectedIndex === qObj.correct) {
         score += scorePerQuestion;
@@ -545,13 +561,28 @@
         alert("오답입니다. 정답: " + qObj.options[qObj.correct]);
         chances--;
         if (chances <= 0) {
+          updateInfo();
           endGame();
           return;
         }
       }
       updateInfo();
-      currentQuestionIndex++;
-      showNextQuestion();
+      showNextButton();
+    }
+
+    // 답이 확인된 후 "다음문제" 버튼 추가
+    function showNextButton() {
+      const nextButton = document.createElement("button");
+      nextButton.innerText = "다음문제";
+      nextButton.style.padding = "10px 15px";
+      nextButton.style.fontSize = "16px";
+      nextButton.style.cursor = "pointer";
+      nextButton.addEventListener("click", () => {
+        currentQuestionIndex++;
+        showNextQuestion();
+      });
+      questionContainer.appendChild(document.createElement("br"));
+      questionContainer.appendChild(nextButton);
     }
 
     function endGame() {
